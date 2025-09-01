@@ -1,1 +1,22 @@
-# mithradatium
+# Mithridatium 🛡️
+
+**A framework for verifying the integrity of pretrained AI models**
+
+Mithridatium is a research-driven project aimed at detecting **backdoors** and **data poisoning** in downloaded pretrained models or pipelines (e.g., from Hugging Face).  
+Our goal is to provide a **modular, command-line tool** that helps researchers and engineers trust the models they use.
+
+---
+
+## 🚀 Project Overview
+
+Modern ML pipelines often reuse pretrained weights from online repositories.  
+This comes with risks:
+
+- ❌ Backdoors — models behave normally until triggered by a specific pattern.
+- ❌ Data poisoning — compromised training data leading to biased or malicious models.
+
+**Mithridatium** analyzes pretrained models to flag potential compromises using multiple defenses from academic research.
+
+---
+
+## Other Functionaly will be updated as the project goes on
