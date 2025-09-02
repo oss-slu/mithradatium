@@ -1,0 +1,9 @@
+torch
+torchvision
+transformers
+scikit-learn
+numpy
+pandas
+matplotlib
+pytest
+typer

@@ -1,0 +1,14 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# data & models
+data/
+models/
+reports/*.json
+
+# notebooks & logs
+*.ipynb_checkpoints/
+logs/
