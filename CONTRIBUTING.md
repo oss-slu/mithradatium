@@ -2,6 +2,23 @@
 
 Thank you for checking out **Mithridatium**! We are excited to have you here. This project is focused on building a framework to **verify the integrity of pretrained AI models** by detecting backdoors and data poisoning. If you are interested in contributing, below are some guidelines to help us make the most out of your contribution.
 
+## Contribution Scope
+
+⚠️ **Note:**
+
+- Issues labeled **`internal team`** are reserved for the project’s assigned developers and will not be accepted from outside contributors.
+- Once the framework is stable, we will open up selected issues for external contributors with labels such as **`good first issue`** or **`help wanted`**.
+
+We encourage you to watch this repository if you’d like to stay updated!
+
+## Issue Labels
+
+We use labels to organize contributions:
+
+- **`internal team`** – restricted to the internal project developers.
+- **`bug`**, **`enhancement`**, **`documentation`** – for categorizing tasks.
+- In the future: **`good first issue`** and **`help wanted`** will indicate tasks that are open to the community.
+
 ## Getting Started
 
 ### How to Contribute
