@@ -1,14 +1,38 @@
-# python
+# Python virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Python cache
 __pycache__/
 *.pyc
-.venv/
-.env
+*.pyo
+*.pyd
 
-# data & models
+# Build and distribution
+build/
+dist/
+*.egg-info/
+
+# Data & models
 data/
 models/
 reports/*.json
 
-# notebooks & logs
+# Notebooks & logs
 *.ipynb_checkpoints/
 logs/
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage and test
+.coverage
+.pytest_cache/
+.mypy_cache/
