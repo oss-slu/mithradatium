@@ -3,10 +3,14 @@ import typer
 import json
 from pathlib import Path
 import sys
-import typer
 
 VERSION = "0.1.0"
 DEFENSES = {"spectral"}
+
+EXIT_USAGE_ERROR = 64     # invalid CLI usage (e.g., unsupported --defense)
+EXIT_NO_INPUT = 66        # input file missing/not a file
+EXIT_CANT_CREATE = 73     # cannot create/overwrite output without --force
+EXIT_IO_ERROR = 74        # input exists but can't be opened/read
 
 app = typer.Typer(help="Mithridatium CLI - verify pretrained model integrity")
 
@@ -32,7 +36,7 @@ def _write_json(obj: dict, out_path: str, force: bool) -> None:
         typer.secho(
             f"Error: output file already exists: {path}.",
         )
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=EXIT_CANT_CREATE)
 
     with path.open("w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
@@ -120,13 +124,13 @@ def detect(
     3) Unsupported defense
     4) Write dummy JSON (stdout allowed via --out -)
     """
-    # 1) Model path exists and is a file  (Sprint 1 acceptance: strict check)
+    # 1) Model path exists and is a file
     p = Path(model)
     if not p.exists() or not p.is_file():
         typer.secho(
             f"Error: model path not found or not a file: {p}",
         )
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=EXIT_NO_INPUT)
 
     # 2) File exists but can't be loaded
     try:
@@ -136,7 +140,7 @@ def detect(
         typer.secho(
             f"Error: model file could not be opened: {p}\nReason: {ex}",
         )
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=EXIT_IO_ERROR)
 
     # 3) Unsupported defense
     d = defense.strip().lower()
@@ -145,7 +149,7 @@ def detect(
             "Error: unsupported --defense "
             f"'{defense}'. Supported defenses: {', '.join(sorted(DEFENSES))}",
         )
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=EXIT_USAGE_ERROR)
 
     # 4) Write dummy JSON (stdout allowed via --out -)
     dummy_report(model_path=str(p), defense=d, out_path=out, force=force)
