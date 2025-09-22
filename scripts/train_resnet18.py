@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 from torchvision.models import resnet18
 import argparse
 import random
+import os
 
 class BadNetDataset(Dataset):
 
@@ -244,7 +245,8 @@ def main(args):
             asr = evaluate_asr(model, asr_loader, device, args.target_class)
             print(f"ASR: {asr:.1f}%")
 
-    torch.save(model.state_dict(), args.output_path, exist_ok=True)
+    os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
+    torch.save(model.state_dict(), args.output_path)
     print(f"Saved to {args.output_path}")
 
 if __name__ == "__main__":
