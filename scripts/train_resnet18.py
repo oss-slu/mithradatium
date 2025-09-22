@@ -230,6 +230,9 @@ def main(args):
         f"Output Path = {args.output_path}\n",
         f"Device = {args.device}\n")
     
+    best_val_acc = 0.0
+    best_model_state = None
+
     for epoch in range(epochs):
         model.train()
         for x, y in train_loader:
@@ -241,13 +244,18 @@ def main(args):
         val_loss, val_acc = evaluate(model, test_loader, device, criterion)
         print(f"Epoch {epoch+1}/{epochs} - val_loss: {val_loss:.4f}  val_acc: {val_acc:.3f}")
 
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_model_state = model.state_dict()
+            print(f"New best model found at epoch {epoch+1} with val_acc: {val_acc:.3f}")
+
         if asr_loader is not None:
             asr = evaluate_asr(model, asr_loader, device, args.target_class)
             print(f"ASR: {asr:.1f}%")
 
     os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
-    torch.save(model.state_dict(), args.output_path)
-    print(f"Saved to {args.output_path}")
+    torch.save(best_model_state, args.output_path)
+    print(f"Best model saved to {args.output_path} with val_acc: {best_val_acc:.3f}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
