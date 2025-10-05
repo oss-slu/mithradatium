@@ -1,3 +1,4 @@
+import os
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -8,7 +9,16 @@ import unittest
 
 class TestEvaluator(unittest.TestCase):
     def test_extract_embeddings_and_evaluate(self):
-        # Use a small subset of CIFAR10
+        # Get model path from environment variable or use default
+        """
+        export MODEL_PATH=models/resnet18_bd.pth
+        export BATCH_SIZE=128
+        .venv/bin/python -m unittest tests/test_evaluator.py
+        """
+        model_path = os.environ.get("MODEL_PATH", "models/resnet18_bd.pth")
+        batch_size = int(os.environ.get("BATCH_SIZE", 128))
+
+        # Use a tiny subset of CIFAR-10
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
@@ -16,13 +26,9 @@ class TestEvaluator(unittest.TestCase):
         testset = datasets.CIFAR10('./data', train=False, download=True, transform=transform)
         indices = list(range(512))
         subset = torch.utils.data.Subset(testset, indices)
-        loader_ = DataLoader(subset, batch_size=128, shuffle=False)
+        loader_ = DataLoader(subset, batch_size=batch_size, shuffle=False)
 
-        model = resnet18(weights=None)
-        model.fc = torch.nn.Linear(model.fc.in_features, 10)
-        model.eval()
-
-        feature_module = loader.get_feature_module(model)
+        model, feature_module = loader.load_resnet18(model_path)
         embs, labels = evaluator.extract_embeddings(model, loader_, feature_module)
         print(f"Embeddings shape: {embs.shape}")
         print(f"Labels shape: {labels.shape}")

@@ -1,9 +1,3 @@
-from torchvision.models import resnet18
-import mithridatium.loader as loader
-
-model = resnet18(weights=None)
-feature_module = loader.get_feature_module(model)
-print(feature_module)  # Should print: <class 'torch.nn.modules.pooling.AdaptiveAvgPool2d'># mithridatium/loader.py
 from pathlib import Path
 import torch
 import torch.nn as nn
@@ -31,9 +25,13 @@ def get_feature_module(model):
     """
     Returns the penultimate feature module for a given model architecture.
     For ResNet-18, returns model.avgpool.
+    Extend this function for other architectures as needed.
     """
     arch = model.__class__.__name__
     if arch == 'ResNet':
         return model.avgpool
+    # Example for future extension:
+    # elif arch == 'VGG':
+    #     return model.classifier[0]
     else:
         raise NotImplementedError(f"Feature module not defined for architecture: {arch}")
