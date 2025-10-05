@@ -58,6 +58,8 @@ model = load_resnet18_cifar10(args.model_dir, device)
 criterion = nn.CrossEntropyLoss()
 
 model.eval()
+mean = torch.tensor([0.4914, 0.4822, 0.4465], device=device).view(1, 3, 1, 1)
+std  = torch.tensor([0.2023, 0.1994, 0.2010], device=device).view(1, 3, 1, 1)
 
 def lr_scheduler(iter_idx):
     lr = 1e-2
@@ -67,29 +69,32 @@ def lr_scheduler(iter_idx):
 
 res = []
 for t in range(10):
-
-    images = torch.rand([30, 3, 32, 32]).to(device)
-    images.requires_grad = True
-
-    last_loss = 1000
-    labels = t * torch.ones((len(images),), dtype=torch.long).to(device)
+    images = torch.rand([30, 3, 32, 32], device=device, requires_grad=True)
+    last_loss = 1000.0
+    labels = torch.full((len(images),), t, dtype=torch.long, device=device)
     onehot_label = F.one_hot(labels, num_classes=NC)
+
+    optimizer = torch.optim.SGD([images], lr=1e-2, momentum=0.9)
+
     for iter_idx in range(NSTEP):
+        optimizer.zero_grad(set_to_none=True)
 
-        optimizer = torch.optim.SGD([images], lr=lr_scheduler(iter_idx), momentum=0.2)
-        optimizer.zero_grad()
-        outputs = model(torch.clamp(images, min=0, max=1))
+        x = torch.clamp(images, 0, 1)
+        x = (x - mean) / std
+        outputs = model(x)
 
-        loss = -1 * torch.sum((outputs * onehot_label)) \
-               + torch.sum(torch.max((1-onehot_label) * outputs - 1000 * onehot_label, dim=1)[0])
-        loss.backward(retain_graph=True)
+        loss = (-(outputs * onehot_label).sum()
+                + torch.max((1 - onehot_label) * outputs - 1000 * onehot_label, dim=1).values.sum())
+        loss.backward()
         optimizer.step()
-        if abs(last_loss - loss.item())/abs(last_loss)< 1e-5:
-            break
-        last_loss = loss.item()
 
-    res.append(torch.max(torch.sum((outputs * onehot_label), dim=1)\
-               - torch.max((1-onehot_label) * outputs - 1000 * onehot_label, dim=1)[0]).item())
+        curr = float(loss.item())
+        if abs(last_loss - curr) / max(abs(last_loss), 1e-12) < 1e-5:
+            break
+        last_loss = curr
+
+    res.append(torch.max(torch.sum(outputs * onehot_label, dim=1)
+             - torch.max((1 - onehot_label) * outputs - 1000 * onehot_label, dim=1).values).item())
 
 stats = np.array(res, dtype=float)
 from scipy.stats import median_abs_deviation as MAD
