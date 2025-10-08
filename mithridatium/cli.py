@@ -3,9 +3,10 @@ import typer
 import json
 from pathlib import Path
 import sys
+from mithridatium import report as rpt
 
 VERSION = "0.1.0"
-DEFENSES = {"spectral"}
+DEFENSES = {"spectral", "mmbd"}
 
 EXIT_USAGE_ERROR = 64     # invalid CLI usage (e.g., unsupported --defense)
 EXIT_NO_INPUT = 66        # input file missing/not a file
@@ -150,9 +151,25 @@ def detect(
             f"'{defense}'. Supported defenses: {', '.join(sorted(DEFENSES))}",
         )
         raise typer.Exit(code=EXIT_USAGE_ERROR)
+    # Run the defenses that are supported
+    try:
+        if d == "mmbd":
+            results = rpt.run_mmbd_stub(str(p), data)
+        elif d == "spectral":
+            results = rpt.run_spectral(str(p), data)
+        else:
+            results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
+    except Exception as ex:
+        typer.secho(
+            f"Error: failed to run '{d}' on model {p}.\nReason: {ex}",
+        )
+        raise typer.Exit(code=EXIT_IO_ERROR)
 
     # 4) Write dummy JSON (stdout allowed via --out -)
-    dummy_report(model_path=str(p), defense=d, out_path=out, force=force)
+    rep = rpt.build_report(model_path=str(p), defense=d, dataset=data, version=VERSION, results=results)
+
+    _write_json(rep, out, force)
+    print(rpt.render_summary(rep))
 
 
 if __name__ == "__main__":
