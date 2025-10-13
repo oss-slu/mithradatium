@@ -4,6 +4,7 @@ Version: 0.1.0
 Summary: Framework for verifying integrity of pretrained AI models
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
+Requires-Dist: typer>=0.12
 
 # Mithridatium 🛡️
 

@@ -9,7 +9,11 @@ mithridatium/report.py
 mithridatium.egg-info/PKG-INFO
 mithridatium.egg-info/SOURCES.txt
 mithridatium.egg-info/dependency_links.txt
+mithridatium.egg-info/entry_points.txt
+mithridatium.egg-info/requires.txt
 mithridatium.egg-info/top_level.txt
 mithridatium/defenses/__init__.py
+mithridatium/defenses/mmbd.py
 mithridatium/defenses/spectral.py
-tests/test_cli.py
+tests/test_evaluator.py
+tests/tests_report.py
