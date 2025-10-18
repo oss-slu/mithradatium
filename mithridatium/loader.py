@@ -6,6 +6,10 @@ import torchvision.models as models
 def load_resnet18(model_path: str | None):
     model = models.resnet18(weights=None)
 
+    # QUICKFIX Resize the FC layer for CIFAR-10 (10 output classes)
+    in_feats = model.fc.in_features
+    model.fc = nn.Linear(in_feats, 10)
+
     # expose the penultimate layer (avgpool -> flatten) for features
     feature_module = model.avgpool
 
@@ -25,13 +29,9 @@ def get_feature_module(model):
     """
     Returns the penultimate feature module for a given model architecture.
     For ResNet-18, returns model.avgpool.
-    Extend this function for other architectures as needed.
     """
     arch = model.__class__.__name__
     if arch == 'ResNet':
         return model.avgpool
-    # Example for future extension:
-    # elif arch == 'VGG':
-    #     return model.classifier[0]
     else:
         raise NotImplementedError(f"Feature module not defined for architecture: {arch}")
