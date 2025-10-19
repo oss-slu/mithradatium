@@ -19,7 +19,8 @@ dist/
 # Data & models
 data/
 models/
-reports/*.json
+/reports/*
+!/reports/report_schema.json
 
 # Notebooks & logs
 *.ipynb_checkpoints/
