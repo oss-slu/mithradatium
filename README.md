@@ -20,3 +20,27 @@ This comes with risks:
 ---
 
 ## Other Functionaly will be updated as the project goes on
+
+## Quickstart
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+pip install pytest pytest-cov
+
+# (A) Train demo models (fast settings)
+
+#Clean model on 5 epochs (Increase epochs for better accuracy, but it will take longer)
+python -m scripts.train_resnet18 --dataset clean  --epochs 5 --output_path models/resnet18_clean.pth
+
+#Poisoned model on 5 epochs (Increase epochs for better accuracy, but it will take longer)
+python -m scripts.train_resnet18 --dataset poison --train_poison_rate 0.1 --target_class 0 \
+  --epochs 5 --output_path models/resnet18_poison.pth
+
+# (B) Run detection
+mithridatium detect --model models/resnet18_poison.pth --defense mmbd --data cifar10 --out reports/mmbd.json
+
+# (C) See summary
+cat reports/mmbd.json
+
+```

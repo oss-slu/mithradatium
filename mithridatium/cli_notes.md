@@ -79,6 +79,21 @@ cd mithridatium
 mithridatium detect -m ../models/resnet18_clean.pth -D spectral -d cifar10 -o ../reports/spectral.json
 ```
 
+### Show a saved report (validate then display)
+
+`show-report` first **validates** the JSON against the schema at `reports/report_schema.json`.
+
+- If valid: prints the chosen view (default **pretty JSON**).
+- If invalid: prints a single error and exits non-zero.
+
+```bash
+# Pretty JSON (default)
+mithridatium show-report -f reports/spectral.json
+
+# Human-readable summary (if you kept render_summary)
+mithridatium show-report -f reports/spectral.json --mode summary
+```
+
 ---
 
 ## Output
@@ -105,6 +120,7 @@ mithridatium detect -m ../models/resnet18_clean.pth -D spectral -d cifar10 -o ..
 ## Exit codes
 
 - `64` (`EXIT_USAGE_ERROR`) – invalid CLI usage (e.g., unsupported `--defense`).
+- `65` (`EXIT_DATA_ERR`) – invalid report data (schema validation failed in `show-report`).
 - `66` (`EXIT_NO_INPUT`) – model path missing or not a file.
 - `73` (`EXIT_CANT_CREATE`) – output file exists and `--force` not supplied.
 - `74` (`EXIT_IO_ERROR`) – I/O problems (e.g., `torch.load` failed, unreadable file).
