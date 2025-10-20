@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 import sys
 from mithridatium import report as rpt
+from mithridatium import loader as loader
+from mithridatium import data as mdata
+
 
 VERSION = "0.1.0"
 DEFENSES = {"spectral", "mmbd"}
@@ -129,7 +132,7 @@ def detect(
     p = Path(model)
     if not p.exists() or not p.is_file():
         typer.secho(
-            f"Error: model path not found or not a file: {p}",
+            f"Error: model path not found or not a file: {p}", err=True
         )
         raise typer.Exit(code=EXIT_NO_INPUT)
 
@@ -139,19 +142,33 @@ def detect(
             pass
     except OSError as ex:
         typer.secho(
-            f"Error: model file could not be opened: {p}\nReason: {ex}",
+            f"Error: model file could not be opened: {p}\nReason: {ex}", err=True
         )
         raise typer.Exit(code=EXIT_IO_ERROR)
-
+    
     # 3) Unsupported defense
     d = defense.strip().lower()
     if d not in DEFENSES:
         typer.secho(
             "Error: unsupported --defense "
-            f"'{defense}'. Supported defenses: {', '.join(sorted(DEFENSES))}",
+            f"'{defense}'. Supported defenses: {', '.join(sorted(DEFENSES))}", err=True
         )
         raise typer.Exit(code=EXIT_USAGE_ERROR)
-    # Run the defenses that are supported
+    
+    # 4) Build model arch
+    print("[cli] building model…")
+    mdl, feature_module = loader.build_model("resnet18", num_classes=10)
+
+    # 5) Load weights from checkpoint
+    print("[cli] loading weights…")
+    mdl = loader.load_weights(mdl, str(p))
+
+    # 6) Build dataloader (TEMP: CIFAR-10; replace with PreprocessConfig)
+    print("[cli] building dataloader…")
+    test_loader = mdata.dataloader_for(str(p), data, split="test", batch_size=256)
+
+    # 7) Run the defenses that are supported
+    print(f"[cli] running defense={d}…")
     try:
         if d == "mmbd":
             results = rpt.run_mmbd_stub(str(p), data)
@@ -161,13 +178,13 @@ def detect(
             results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
     except Exception as ex:
         typer.secho(
-            f"Error: failed to run '{d}' on model {p}.\nReason: {ex}",
+            f"Error: failed to run '{d}' on model {p}.\nReason: {ex}", err=True
         )
         raise typer.Exit(code=EXIT_IO_ERROR)
+   
 
-    # 4) Write dummy JSON (stdout allowed via --out -)
+    # 8) Build & write report
     rep = rpt.build_report(model_path=str(p), defense=d, dataset=data, version=VERSION, results=results)
-
     _write_json(rep, out, force)
     print(rpt.render_summary(rep))
 
