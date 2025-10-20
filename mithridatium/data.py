@@ -2,13 +2,13 @@
 import torch
 from torchvision import datasets, transforms
 
-def get_cifar10_loader(batch_size: int = 128):
+def dataloader_for(model_path: str, dataset: str, split: str, batch_size: int = 256):
+    # TEMP: hardcoded CIFAR-10; replace with PreprocessConfig next sprint
     tfm = transforms.Compose([
-        transforms.Resize(224),
         transforms.ToTensor(),
-        transforms.Normalize([0.485,0.456,0.406],
-                             [0.229,0.224,0.225]),
+        transforms.Normalize([0.4914,0.4822,0.4465],[0.2023,0.1994,0.2010]),
     ])
-    ds = datasets.CIFAR10(root="data", train=False, download=True, transform=tfm)
-    loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=2)
-    return loader
+    if dataset.lower() != "cifar10":
+        raise NotImplementedError("Only CIFAR-10 for now")
+    ds = datasets.CIFAR10(root="data", train=(split=="train"), download=True, transform=tfm)
+    return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(split=="train"), num_workers=2)
