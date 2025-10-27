@@ -172,8 +172,8 @@ def detect(
     try:
         if d == "mmbd":
             results = rpt.run_mmbd_stub(str(p), data)
-        elif d == "spectral":
-            results = rpt.run_spectral(str(p), data)
+        # elif d == "spectral":
+        #     results = rpt.run_spectral(str(p), data)
         else:
             results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
     except Exception as ex:
