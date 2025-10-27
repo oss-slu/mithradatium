@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 from mithridatium import report as rpt
 from mithridatium import loader as loader
-from mithridatium import data as mdata
+from mithridatium import utils
 
 
 VERSION = "0.1.0"
@@ -165,7 +165,7 @@ def detect(
 
     # 6) Build dataloader (TEMP: CIFAR-10; replace with PreprocessConfig)
     print("[cli] building dataloader…")
-    test_loader = mdata.dataloader_for(str(p), data, split="test", batch_size=256)
+    test_loader = utils.dataloader_for(str(p), data, split="test", batch_size=256)
 
     # 7) Run the defenses that are supported
     print(f"[cli] running defense={d}…")
