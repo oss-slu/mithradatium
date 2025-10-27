@@ -69,10 +69,15 @@ def build_model(arch: str = "resnet18", num_classes: int = 10):
     if arch.lower() == "resnet18":
         from torchvision.models import resnet18
         m = resnet18(weights=None)
-        m.fc = torch.nn.Linear(m.fc.in_features, num_classes)
-        return m, get_feature_module(m)
+    elif arch == "resnet34":
+        from torchvision.models import resnet34
+        m = resnet34(weights=None)
     else:
         raise NotImplementedError(f"Architecture '{arch}' not yet supported")
+        
+    m.fc = torch.nn.Linear(m.fc.in_features, num_classes)
+    return m, get_feature_module(m)
+ 
 
 def load_weights(model, ckpt_path: str):
     """
