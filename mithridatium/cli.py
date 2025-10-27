@@ -90,6 +90,12 @@ def detect(
         "-D",
         help="The defense you want to run. E.g. 'spectral'.",
     ),
+    arch: str = typer.Option(
+        "resnet18",
+        "--arch",
+        "-a",
+        help="The model architecture to use. E.g. 'resnet18'.",
+    ),
     out: str = typer.Option(
         "reports/report.json",
         "--out",
@@ -138,8 +144,8 @@ def detect(
         raise typer.Exit(code=EXIT_USAGE_ERROR)
     
     # 4) Build model arch
-    print("[cli] building model…")
-    mdl, feature_module = loader.build_model("resnet18", num_classes=10)
+    print(f"[cli] building model architecture '{arch}'…")
+    mdl, feature_module = loader.build_model(arch, num_classes=10)
 
     # 5) Load weights from checkpoint
     print("[cli] loading weights…")

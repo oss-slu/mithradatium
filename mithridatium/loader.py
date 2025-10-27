@@ -63,8 +63,14 @@ def get_feature_module(model):
         raise NotImplementedError(f"Feature module not defined for architecture: {arch}")
     
 def build_model(arch: str = "resnet18", num_classes: int = 10):
-    from torchvision.models import resnet18
-    m = resnet18(weights=None)
+    if arch == "resnet18":
+        from torchvision.models import resnet18
+        m = resnet18(weights=None)
+    elif arch == "resnet34":
+        from torchvision.models import resnet34
+        m = resnet34(weights=None)
+    else:
+        raise ValueError(f"Unsupported architecture: {arch}")
     m.fc = torch.nn.Linear(m.fc.in_features, num_classes)
     return m, get_feature_module(m)
 
