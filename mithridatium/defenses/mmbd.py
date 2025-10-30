@@ -29,7 +29,7 @@ parser.add_argument("--report_out", default="reports/mmbd_report.json", help="JS
 #parser.add_argument('--data_path', '-d', required=True, help='data path')
 args = parser.parse_args()
 
-def load_resnet18_cifar10(weights_path, device=0):
+'''def load_resnet18_cifar10(weights_path, device=0):
     model = resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, 10)
 
@@ -40,114 +40,119 @@ def load_resnet18_cifar10(weights_path, device=0):
 
     model.load_state_dict(state, strict=True)
     model.to(device).eval()
-    return model
-
-random.seed()
-device = get_device(args.device)
-
-# Detection parameters
-NC = 10
-NI = 150
-PI = 0.9
-NSTEP = 300
-TC = 6
-batch_size = 20
-
-# Load model
-model = load_resnet18_cifar10(args.model_dir, device)
-criterion = nn.CrossEntropyLoss()
-
-model.eval()
-mean = torch.tensor([0.4914, 0.4822, 0.4465], device=device).view(1, 3, 1, 1)
-std  = torch.tensor([0.2023, 0.1994, 0.2010], device=device).view(1, 3, 1, 1)
-
-def lr_scheduler(iter_idx):
-    lr = 1e-2
+    return model'''
 
 
-    return lr
+def run_mmbd(model, configs):
 
-res = []
-for t in range(10):
-    images = torch.rand([30, 3, 32, 32], device=device, requires_grad=True)
-    last_loss = 1000.0
-    labels = torch.full((len(images),), t, dtype=torch.long, device=device)
-    onehot_label = F.one_hot(labels, num_classes=NC)
+    random.seed()
+    device = get_device(0)
 
-    optimizer = torch.optim.SGD([images], lr=1e-2, momentum=0.9)
+    # Detection parameters
+    NC = 10
+    NI = 150
+    PI = 0.9
+    NSTEP = 300
+    TC = 6
+    batch_size = 20
 
-    for iter_idx in range(NSTEP):
-        optimizer.zero_grad(set_to_none=True)
+    # Load model
+    #model = load_resnet18_cifar10(args.model_dir, device)
+    criterion = nn.CrossEntropyLoss()
 
-        x = torch.clamp(images, 0, 1)
-        x = (x - mean) / std
-        outputs = model(x)
+    model.eval()
+    mean = torch.tensor(configs.get_mean(), device=device).view(1, 3, 1, 1)
+    std = torch.tensor(configs.get_std(), device=device).view(1, 3, 1, 1)
 
-        loss = (-(outputs * onehot_label).sum()
-                + torch.max((1 - onehot_label) * outputs - 1000 * onehot_label, dim=1).values.sum())
-        loss.backward()
-        optimizer.step()
-
-        curr = float(loss.item())
-        if abs(last_loss - curr) / max(abs(last_loss), 1e-12) < 1e-5:
-            break
-        last_loss = curr
-
-    res.append(torch.max(torch.sum(outputs * onehot_label, dim=1)
-             - torch.max((1 - onehot_label) * outputs - 1000 * onehot_label, dim=1).values).item())
-
-stats = np.array(res, dtype=float)
-from scipy.stats import median_abs_deviation as MAD
-from scipy.stats import gamma
-mad = MAD(stats, scale='normal')
-mad = float(mad) if mad != 0 else 1e-12
-abs_deviation = np.abs(stats - np.median(stats))
-score = abs_deviation / mad
+    def lr_scheduler(iter_idx):
+        lr = 1e-2
 
 
-np.save('results.npy', np.array(res))
-ind_max = np.argmax(stats)
-r_eval = np.amax(stats)
-r_null = np.delete(stats, ind_max)
+        return lr
 
-shape, loc, scale = gamma.fit(r_null)
-pv = 1 - pow(gamma.cdf(r_eval, a=shape, loc=loc, scale=scale), len(r_null)+1)
-verdict = "no_attack" if pv > 0.05 else "attack"
+    res = []
+    for t in range(10):
+        images = torch.rand([30, *configs.input_size], device=device, requires_grad=True)
+        last_loss = 1000.0
+        labels = torch.full((len(images),), t, dtype=torch.long, device=device)
+        onehot_label = F.one_hot(labels, num_classes=NC)
 
-thresholds = {
-    "p_value": 0.05,
-    "normalized_score": {
-        "normal": [0.0, 1.5],
-        "mild": [1.5, 3.0],
-        "suspicious": [3.0, 5.0],
-        "very_suspicious": [5.0, None]
-    },
-}
+        optimizer = torch.optim.SGD([images], lr=1e-2, momentum=0.9)
 
-parameters = {
-    "NC": NC,
-    "NSTEP": NSTEP,
-    "optimizer": "SGD(momentum=0.2)",
-    "lr_init": 1e-2,
-    "device": str(device),
-}
+        for iter_idx in range(NSTEP):
+            optimizer.zero_grad(set_to_none=True)
 
-results = {
-    "defense": "MMBD",
-    "model_path": args.model_dir,
-    "per_class_scores": stats.tolist(),
-    "normalized_scores": score.tolist(),
-    "p_value": float(pv),
-    "verdict": verdict,
-    "suspected_target": (ind_max if verdict == "attack" else None),
-    "thresholds": thresholds,
-    "parameters": parameters
-}
+            x = torch.clamp(images, 0, 1)
+            x = (x - mean) / std
+            outputs = model(x)
 
-write_report(
-    model_path=args.model_dir,
-    defense="MMBD",
-    out_path=args.report_out,
-    details=results,
-    version="0.1.0"
-)
+            loss = (-(outputs * onehot_label).sum()
+                    + torch.max((1 - onehot_label) * outputs - 1000 * onehot_label, dim=1).values.sum())
+            loss.backward()
+            optimizer.step()
+
+            curr = float(loss.item())
+            if abs(last_loss - curr) / max(abs(last_loss), 1e-12) < 1e-5:
+                break
+            last_loss = curr
+
+        res.append(torch.max(torch.sum(outputs * onehot_label, dim=1)
+                - torch.max((1 - onehot_label) * outputs - 1000 * onehot_label, dim=1).values).item())
+
+    stats = np.array(res, dtype=float)
+    from scipy.stats import median_abs_deviation as MAD
+    from scipy.stats import gamma
+    mad = MAD(stats, scale='normal')
+    mad = float(mad) if mad != 0 else 1e-12
+    abs_deviation = np.abs(stats - np.median(stats))
+    score = abs_deviation / mad
+
+
+    np.save('results.npy', np.array(res))
+    ind_max = np.argmax(stats)
+    r_eval = np.amax(stats)
+    r_null = np.delete(stats, ind_max)
+
+    shape, loc, scale = gamma.fit(r_null)
+    pv = 1 - pow(gamma.cdf(r_eval, a=shape, loc=loc, scale=scale), len(r_null)+1)
+    verdict = "no_attack" if pv > 0.05 else "attack"
+
+    thresholds = {
+        "p_value": 0.05,
+        "normalized_score": {
+            "normal": [0.0, 1.5],
+            "mild": [1.5, 3.0],
+            "suspicious": [3.0, 5.0],
+            "very_suspicious": [5.0, None]
+        },
+    }
+
+    parameters = {
+        "NC": NC,
+        "NSTEP": NSTEP,
+        "optimizer": "SGD(momentum=0.2)",
+        "lr_init": 1e-2,
+        "device": str(device),
+    }
+
+    results = {
+        "defense": "mmbd",
+        "per_class_scores": stats.tolist(),
+        "normalized_scores": score.tolist(),
+        "p_value": float(pv),
+        "verdict": verdict,
+        "suspected_target": (ind_max if verdict == "attack" else None),
+        "thresholds": thresholds,
+        "parameters": parameters,
+        "dataset": configs.get_dataset()
+    }
+
+    return results
+
+    '''write_report(
+        model_path=args.model_dir,
+        defense="MMBD",
+        out_path=args.report_out,
+        details=results,
+        version="0.1.0"
+    )'''
