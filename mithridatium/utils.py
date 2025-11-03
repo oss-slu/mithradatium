@@ -8,18 +8,82 @@ from torchvision import datasets, transforms
 from dataclasses import dataclass, field
 from typing import Tuple, List
 import json
+from typing import Tuple, List
 
-
-@dataclass
 class PreprocessConfig:
     """Configuration for input preprocessing."""
-    input_size: Tuple[int, int] = (32, 32)  # (H, W)
-    channels_first: bool = True              # True = NCHW, False = NHWC
-    value_range: Tuple[float, float] = (0.0, 1.0)
-    mean: Tuple[float, float, float] = (0.4914, 0.4822, 0.4465)  # (R, G, B)
-    std: Tuple[float, float, float] = (0.2023, 0.1994, 0.2010)   # (R, G, B)
-    normalize: bool = True
-    ops: List[str] = field(default_factory=list)  # e.g., ["resize:32"]
+
+    def __init__(
+        self,
+        input_size: Tuple[int, int, int] = (3, 32, 32),   # (C, H, W)
+        channels_first: bool = True,              # True = NCHW, False = NHWC
+        value_range: Tuple[float, float] = (0.0, 1.0),
+        mean: Tuple[float, float, float] = (0.4914, 0.4822, 0.4465),  # (R, G, B)
+        std: Tuple[float, float, float] = (0.2023, 0.1994, 0.2010),   # (R, G, B)
+        normalize: bool = True,
+        ops: List[str] = None,                     # e.g., ["resize:32"]
+        dataset: str = "Unlisted"
+    ):
+        self.input_size = input_size
+        self.channels_first = channels_first
+        self.value_range = value_range
+        self.mean = mean
+        self.std = std
+        self.normalize = normalize
+        self.ops = ops if ops is not None else []
+        self.dataset = dataset
+
+    # ======== Getters ========
+    def get_input_size(self):
+        return self.input_size
+
+    def get_channels_first(self):
+        return self.channels_first
+
+    def get_value_range(self):
+        return self.value_range
+
+    def get_mean(self):
+        return self.mean
+
+    def get_std(self):
+        return self.std
+
+    def get_normalize(self):
+        return self.normalize
+
+    def get_ops(self):
+        return self.ops
+    
+    def get_dataset(self):
+        return self.dataset
+
+    # ======== Setters ========
+    def set_input_size(self, input_size: Tuple[int, int]):
+        self.input_size = input_size
+
+    def set_channels_first(self, channels_first: bool):
+        self.channels_first = channels_first
+
+    def set_value_range(self, value_range: Tuple[float, float]):
+        self.value_range = value_range
+
+    def set_mean(self, mean: Tuple[float, float, float]):
+        self.mean = mean
+
+    def set_std(self, std: Tuple[float, float, float]):
+        self.std = std
+
+    def set_normalize(self, normalize: bool):
+        self.normalize = normalize
+
+    def set_ops(self, ops: List[str]):
+        self.ops = ops
+
+    def set_dataset(self, dataset):
+        self.dataset = dataset
+    
+
 
 
 def load_preprocess_config(model_path: str) -> PreprocessConfig:
