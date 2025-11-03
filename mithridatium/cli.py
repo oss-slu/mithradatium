@@ -136,11 +136,18 @@ def detect(
     # Run the defenses that are supported
     try:
         if d == "mmbd":
+<<<<<<< Updated upstream
             results = rpt.run_mmbd_stub(str(p), data)
         elif d == "spectral":
             results = rpt.run_spectral(str(p), data)
+=======
+            cfg = utils.load_preprocess_config(str(p))
+            cfg.set_dataset(data)
+            results = rpt.mmbd_defense(mdl, cfg)
+>>>>>>> Stashed changes
         else:
             results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
+
     except Exception as ex:
         typer.secho(
             f"Error: failed to run '{d}' on model {p}.\nReason: {ex}",

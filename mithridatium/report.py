@@ -4,8 +4,12 @@ import json
 import datetime as dt
 from pathlib import Path
 from typing import Dict, Any
+<<<<<<< Updated upstream
 import torch
 import jsonschema
+=======
+from mithridatium.defenses.mmbd import run_mmbd
+>>>>>>> Stashed changes
 
 def build_report(model_path: str, defense: str, dataset: str, version: str = "0.1.0",
                  results: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -55,11 +59,51 @@ def run_spectral(model_path: str, dataset: str, iters: int = 50) -> dict:
     # naive threshold; tune later
     suspected = top_singular > 10.0 
 
+<<<<<<< Updated upstream
     return {"suspected_backdoor": bool(suspected), "num_flagged": 0, "top_eigenvalue": top_ev}
+=======
+# def write_dummy_report(model_path: str, defense: str, out_path: str, version: str = "0.1.0",results: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def write_report(model_path: str, defense: str, out_path: str, details, version: str = "0.1.0"):
+    payload = {
+        "mithridatium_version": version,
+        "timestamp_utc": dt.datetime.utcnow().isoformat() + "Z",
+        "model_path": str(model_path),
+        "defense": defense,
+        "status": "ok" if details else "empty"
+    }
 
-def run_mmbd_stub(model_path: str, dataset: str) -> Dict[str, Any]:
-    # placeholder metrics to satisfy acceptance criteria; swap with real MMBD later
-    return {"suspected_backdoor": True, "num_flagged": 500, "top_eigenvalue": 42.3}
+    if details is not None:
+        payload["details"] = _json_safe(details)
+
+
+    out_file = Path(out_path)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with out_file.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False, sort_keys=True)
+
+    print(f"[ok] Report written to {out_file.resolve()}")
+    return payload
+
+
+def build_report(model_path: str, defense: str, dataset: str, version: str = "0.1.0",
+                 results: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    return {
+        "mithridatium_version": version,
+        "model_path": model_path,
+        "defense": defense,
+        "dataset": dataset,
+        "results": results or {
+            "suspected_backdoor": False,
+            "num_flagged": 0,
+            "top_eigenvalue": 0.0,
+        },
+    }
+>>>>>>> Stashed changes
+
+def mmbd_defense(model, preprocess_config) -> Dict[str, Any]:
+    return run_mmbd(model, preprocess_config)
+
 
 def _json_safe(obj):
     import numpy as np
