@@ -30,6 +30,7 @@ def render_summary(report: Dict[str, Any]) -> str:
         f"- num_flagged:       {r.get('num_flagged')}\n"
         f"- top_eigenvalue:    {r.get('top_eigenvalue')}"
     )
+import torch
 
 def write_report(model_path: str, defense: str, out_path: str, details, version: str = "0.1.0"):
     payload = {
@@ -80,6 +81,16 @@ def render_summary(report: Dict[str, Any]) -> str:
         f"- top_eigenvalue:    {r.get('top_eigenvalue')}"
     )
 
+def render_summary(report: Dict[str, Any]) -> str:
+    r = report["results"]
+    return (
+        f"Mithridatium {report['mithridatium_version']} | "
+        f"defense={report['defense']} | dataset={report['dataset']}\n"
+        f"- model_path:        {report['model_path']}\n"
+        f"- suspected_backdoor:{r.get('suspected_backdoor')}\n"
+        f"- num_flagged:       {r.get('num_flagged')}\n"
+        f"- top_eigenvalue:    {r.get('top_eigenvalue')}"
+    )
 def _json_safe(obj):
     import numpy as np
     if isinstance(obj, dict):

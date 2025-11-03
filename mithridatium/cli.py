@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 import sys
 from mithridatium import report as rpt
+from mithridatium import loader as loader
+from mithridatium import utils
+
 
 VERSION = "0.1.0"
 DEFENSES = {"spectral", "mmbd"}
 
 EXIT_USAGE_ERROR = 64     # invalid CLI usage (e.g., unsupported --defense)
-EXIT_DATA_ERR = 65  # invalid data format (schema failures)
 EXIT_NO_INPUT = 66        # input file missing/not a file
 EXIT_CANT_CREATE = 73     # cannot create/overwrite output without --force
 EXIT_IO_ERROR = 74        # input exists but can't be opened/read
@@ -42,6 +44,25 @@ def _write_json(obj: dict, out_path: str, force: bool) -> None:
 
     with path.open("w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
+
+
+def dummy_report(model_path: str, defense: str, out_path: str, force: bool) -> None:
+    """
+    Nothing runs yet, just a dummy report.
+    """
+    
+    # dummy report:
+    report = {
+        "mithridatium_version": VERSION,
+        "model_path": model_path,
+        "defense": defense,
+        "status": "Not yet implemented", 
+    }
+
+    _write_json(report, out_path, force)
+    where = "stdout" if out_path == "-" else out_path
+    typer.echo(f"Report written to {where}")
+
 
 @app.callback(invoke_without_command=True)
 def _root(
@@ -87,6 +108,12 @@ def detect(
         "-D",
         help="The defense you want to run. E.g. 'spectral'.",
     ),
+    arch: str = typer.Option(
+        "resnet18",
+        "--arch",
+        "-a",
+        help="The model architecture to use. E.g. 'resnet18'.",
+    ),
     out: str = typer.Option(
         "reports/report.json",
         "--out",
@@ -111,7 +138,7 @@ def detect(
     p = Path(model)
     if not p.exists() or not p.is_file():
         typer.secho(
-            f"Error: model path not found or not a file: {p}",
+            f"Error: model path not found or not a file: {p}", err=True
         )
         raise typer.Exit(code=EXIT_NO_INPUT)
 
@@ -121,19 +148,33 @@ def detect(
             pass
     except OSError as ex:
         typer.secho(
-            f"Error: model file could not be opened: {p}\nReason: {ex}",
+            f"Error: model file could not be opened: {p}\nReason: {ex}", err=True
         )
         raise typer.Exit(code=EXIT_IO_ERROR)
-
+    
     # 3) Unsupported defense
     d = defense.strip().lower()
     if d not in DEFENSES:
         typer.secho(
             "Error: unsupported --defense "
-            f"'{defense}'. Supported defenses: {', '.join(sorted(DEFENSES))}",
+            f"'{defense}'. Supported defenses: {', '.join(sorted(DEFENSES))}", err=True
         )
         raise typer.Exit(code=EXIT_USAGE_ERROR)
-    # Run the defenses that are supported
+    
+    # 4) Build model arch
+    print(f"[cli] building model architecture '{arch}'…")
+    mdl, feature_module = loader.build_model(arch, num_classes=10)
+
+    # 5) Load weights from checkpoint
+    print("[cli] loading weights…")
+    mdl = loader.load_weights(mdl, str(p))
+
+    # 6) Build dataloader (TEMP: CIFAR-10; replace with PreprocessConfig)
+    print("[cli] building dataloader…")
+    test_loader = utils.dataloader_for(str(p), data, split="test", batch_size=256)
+
+    # 7) Run the defenses that are supported
+    print(f"[cli] running defense={d}…")
     try:
         if d == "mmbd":
             cfg = utils.load_preprocess_config(str(p))
@@ -144,72 +185,16 @@ def detect(
 
     except Exception as ex:
         typer.secho(
-            f"Error: failed to run '{d}' on model {p}.\nReason: {ex}",
+            f"Error: failed to run '{d}' on model {p}.\nReason: {ex}", err=True
         )
         raise typer.Exit(code=EXIT_IO_ERROR)
+   
 
-    # 4) Write dummy JSON (stdout allowed via --out -)
+    # 8) Build & write report
     rep = rpt.build_report(model_path=str(p), defense=d, dataset=data, version=VERSION, results=results)
-
     _write_json(rep, out, force)
+    print(rpt.render_summary(rep))
 
-@app.command("show-report")
-def show_report(
-    file: str = typer.Option(..., "--file", "-f", help="Path to a JSON report file."),
-    mode: str = typer.Option(
-        "json",
-        "--mode",
-        "-m",
-        help="Display report as 'json' (pretty JSON) or 'summary' (human-readable).",
-    ),
-    schema: str = typer.Option(
-        None,
-        "--schema",
-        help="Optional schema path; defaults to bundled schema.",
-    ),
-) -> None:
-    """
-    Pretty-print a saved report. Validates first:
-    - If valid: prints chosen view (no extra messages).
-    - If invalid: prints a single error and exits non-zero.
-    """
-    p = Path(file)
-    if not p.exists() or not p.is_file():
-        typer.secho(f"Error: report file not found: {p}", err=True)
-        raise typer.Exit(code=EXIT_NO_INPUT)
 
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception as ex:
-        typer.secho(f"Error: failed to read/parse JSON: {p}\nReason: {ex}", err=True)
-        raise typer.Exit(code=EXIT_IO_ERROR)
-
-    # Validate (silent on success)
-    try:
-        rpt.validate_report_data(data, schema=schema)
-    except RuntimeError as ex:
-        # jsonschema missing or similar setup issue
-        typer.secho(f"Error: {ex}", err=True)
-        raise typer.Exit(code=EXIT_USAGE_ERROR)
-    except Exception as ex:
-        typer.secho("Report not valid.", err=True)
-        typer.secho(f"Reason: {ex}", err=True)
-        raise typer.Exit(code=EXIT_DATA_ERR)
-
-    # If we reach here, it's valid—print the chosen view
-    if mode.lower() == "json":
-        typer.echo(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True))
-    elif mode.lower() == "summary":
-        try:
-            summary = rpt.render_summary(data)
-            typer.echo(summary)
-        except Exception as ex:
-            typer.secho("Error: could not render summary. Is this a valid report JSON?", err=True)
-            typer.secho(f"Reason: {ex}", err=True)
-            raise typer.Exit(code=EXIT_DATA_ERR)
-    else:
-        typer.secho("Error: --mode must be 'json' or 'summary'", err=True)
-        raise typer.Exit(code=EXIT_USAGE_ERROR)
-    
 if __name__ == "__main__":
     app()
