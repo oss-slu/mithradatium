@@ -5,8 +5,12 @@ import datetime as dt
 from pathlib import Path
 from typing import Dict, Any
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import torch
 import jsonschema
+=======
+from mithridatium.defenses.mmbd import run_mmbd
+>>>>>>> Stashed changes
 =======
 from mithridatium.defenses.mmbd import run_mmbd
 >>>>>>> Stashed changes
@@ -104,6 +108,12 @@ def build_report(model_path: str, defense: str, dataset: str, version: str = "0.
 def mmbd_defense(model, preprocess_config) -> Dict[str, Any]:
     return run_mmbd(model, preprocess_config)
 
+<<<<<<< Updated upstream
+=======
+def mmbd_defense(model, preprocess_config) -> Dict[str, Any]:
+    return run_mmbd(model, preprocess_config)
+
+>>>>>>> Stashed changes
 
 def _json_safe(obj):
     import numpy as np
