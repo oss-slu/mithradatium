@@ -6,6 +6,7 @@ import sys
 from mithridatium import report as rpt
 from mithridatium import loader as loader
 from mithridatium import utils
+from mithridatium.defenses.mmbd import run_mmbd
 
 
 VERSION = "0.1.0"
@@ -179,7 +180,7 @@ def detect(
         if d == "mmbd":
             cfg = utils.load_preprocess_config(str(p))
             cfg.set_dataset(data)
-            results = rpt.mmbd_defense(mdl, cfg)
+            results = run_mmbd(mdl, cfg)
         else:
             results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
 

@@ -2,12 +2,10 @@ README.md
 pyproject.toml
 mithridatium/__init__.py
 mithridatium/cli.py
-mithridatium/data.py
 mithridatium/evaluator.py
-mithridatium/io.py
 mithridatium/loader.py
-mithridatium/modelcard.py
 mithridatium/report.py
+mithridatium/utils.py
 mithridatium.egg-info/PKG-INFO
 mithridatium.egg-info/SOURCES.txt
 mithridatium.egg-info/dependency_links.txt

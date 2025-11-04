@@ -1,14 +1,12 @@
-from __future__ import absolute_import
-from __future__ import print_function
+# from __future__ import absolute_import
+# from __future__ import print_function
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet18
 
-from mithridatium.report import write_report
-
-import argparse
+# import argparse
 import random
 import numpy as np
 
@@ -22,12 +20,12 @@ def get_device(device_index=0):
     else:
         return torch.device("cpu")
 
-parser = argparse.ArgumentParser(description='UnivBD method')
-parser.add_argument('--model_dir', default='model1', help='model path')
-parser.add_argument('--device', default=0, type=int)
-parser.add_argument("--report_out", default="reports/mmbd_report.json", help="JSON output path")
+# parser = argparse.ArgumentParser(description='UnivBD method')
+# parser.add_argument('--model_dir', default='model1', help='model path')
+# parser.add_argument('--device', default=0, type=int)
+# parser.add_argument("--report_out", default="reports/mmbd_report.json", help="JSON output path")
 #parser.add_argument('--data_path', '-d', required=True, help='data path')
-args = parser.parse_args()
+# args = parser.parse_args()
 
 '''def load_resnet18_cifar10(weights_path, device=0):
     model = resnet18(weights=None)
@@ -149,7 +147,7 @@ def run_mmbd(model, configs):
 
     return results
 
-    '''write_report(
+    '''build_report(
         model_path=args.model_dir,
         defense="MMBD",
         out_path=args.report_out,
