@@ -170,17 +170,19 @@ def detect(
     print("[cli] loading weights…")
     mdl = loader.load_weights(mdl, str(p))
 
-    # 6) Build dataloader (TEMP: CIFAR-10; replace with PreprocessConfig)
+    # 6) Build dataloader using canonical transforms for the dataset
     print("[cli] building dataloader…")
-    test_loader = utils.dataloader_for(str(p), data, split="test", batch_size=256)
+    test_loader, config = utils.dataloader_for(data, split="test", batch_size=256)
 
     # 7) Run the defenses that are supported
     print(f"[cli] running defense={d}…")
     try:
         if d == "mmbd":
-            cfg = utils.load_preprocess_config(str(p))
-            cfg.set_dataset(data)
-            results = run_mmbd(mdl, cfg)
+            # Move model to appropriate device for MMBD
+            from mithridatium.defenses.mmbd import get_device
+            device = get_device(0)
+            mdl = mdl.to(device)
+            results = run_mmbd(mdl, config)
         else:
             results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
 

@@ -82,13 +82,67 @@ class PreprocessConfig:
 
     def set_dataset(self, dataset):
         self.dataset = dataset
-    
 
+
+# Dataset configuration mapping
+DATASET_CONFIGS = {
+    "cifar10": {
+        "input_size": (3, 32, 32),
+        "mean": (0.4914, 0.4822, 0.4465),
+        "std": (0.2023, 0.1994, 0.2010),
+        "normalize": True,
+    },
+    "cifar100": {
+        "input_size": (3, 32, 32),
+        "mean": (0.5071, 0.4867, 0.4408),  # CIFAR-100 canonical stats
+        "std": (0.2675, 0.2565, 0.2761),
+        "normalize": True,
+    },
+    "imagenet": {
+        "input_size": (3, 224, 224),
+        "mean": (0.485, 0.456, 0.406),     # ImageNet canonical stats
+        "std": (0.229, 0.224, 0.225),
+        "normalize": True,
+    },
+}
+
+
+def get_preprocess_config(dataset: str) -> PreprocessConfig:
+    """
+    Get preprocessing config for a dataset based on canonical transforms.
+    
+    Args:
+        dataset: Dataset name (e.g., "cifar10", "cifar100", "imagenet").
+        
+    Returns:
+        PreprocessConfig with canonical values for the dataset.
+    """
+    dataset_lower = dataset.lower()
+    
+    if dataset_lower not in DATASET_CONFIGS:
+        print(f"[warn] Unknown dataset '{dataset}', using CIFAR-10 defaults")
+        dataset_lower = "cifar10"
+    
+    config = DATASET_CONFIGS[dataset_lower]
+    
+    return PreprocessConfig(
+        input_size=config["input_size"],
+        channels_first=True,
+        value_range=(0.0, 1.0),
+        mean=config["mean"],
+        std=config["std"],
+        normalize=config["normalize"],
+        ops=[],
+        dataset=dataset
+    )
 
 
 def load_preprocess_config(model_path: str) -> PreprocessConfig:
     """
-    Load preprocessing config from model's JSON sidecar file.
+    DEPRECATED: Load preprocessing config from model's JSON sidecar file.
+    
+    This function is deprecated. Use get_preprocess_config(dataset) instead,
+    which provides canonical preprocessing configs based on dataset name.
     
     Args:
         model_path: Path to the model checkpoint file.
@@ -96,6 +150,14 @@ def load_preprocess_config(model_path: str) -> PreprocessConfig:
     Returns:
         PreprocessConfig with loaded or default values.
     """
+    import warnings
+    warnings.warn(
+        "load_preprocess_config() is deprecated. Use get_preprocess_config(dataset) "
+        "with canonical dataset configs instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     card_path = Path(model_path).with_suffix(".json")
     if not card_path.exists():
         print(f"[warn] No model sidecar found at {card_path}, using CIFAR-10 defaults")
@@ -114,46 +176,62 @@ def load_preprocess_config(model_path: str) -> PreprocessConfig:
     )
 
 
-def dataloader_for(model_path: str, dataset: str, split: str, batch_size: int = 256):
+def dataloader_for(dataset: str, split: str, batch_size: int = 256):
     """
-    Create a dataloader for the specified dataset.
+    Create a dataloader for the specified dataset using canonical transforms.
     
     Args:
-        model_path: Path to model (used to load preprocessing config).
-        dataset: Dataset name (currently only "cifar10" supported).
+        dataset: Dataset name (e.g., "cifar10", "cifar100", "imagenet").
         split: "train" or "test".
         batch_size: Batch size for the dataloader.
         
     Returns:
-        torch.utils.data.DataLoader for the specified dataset.
+        tuple: (torch.utils.data.DataLoader, PreprocessConfig) for the specified dataset.
     """
-    # Load preprocessing config
-    try:
-        config = load_preprocess_config(model_path)
-        mean, std = config.mean, config.std
-    except Exception as e:
-        print(f"[warn] Failed to load preprocess config: {e}")
-        # Fallback to CIFAR-10 defaults
-        mean = [0.4914, 0.4822, 0.4465]
-        std = [0.2023, 0.1994, 0.2010]
+    # Get canonical preprocessing config for the dataset
+    config = get_preprocess_config(dataset)
     
-    tfm = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ])
+    # Build transforms based on config
+    transform_list = [transforms.ToTensor()]
     
-    if dataset.lower() != "cifar10":
-        raise NotImplementedError(f"Only CIFAR-10 supported for now, got: {dataset}")
+    # Add resize if needed (e.g., for ImageNet)
+    if config.input_size[1:] != (32, 32):  # If not 32x32
+        transform_list.append(transforms.Resize(config.input_size[1:]))
     
-    ds = datasets.CIFAR10(
-        root="data",
-        train=(split == "train"),
-        download=True,
-        transform=tfm
-    )
-    return torch.utils.data.DataLoader(
+    # Add normalization
+    if config.normalize:
+        transform_list.append(transforms.Normalize(config.mean, config.std))
+    
+    tfm = transforms.Compose(transform_list)
+    
+    # Create dataset based on dataset name
+    dataset_lower = dataset.lower()
+    
+    if dataset_lower == "cifar10":
+        ds = datasets.CIFAR10(
+            root="data",
+            train=(split == "train"),
+            download=True,
+            transform=tfm
+        )
+    elif dataset_lower == "cifar100":
+        ds = datasets.CIFAR100(
+            root="data",
+            train=(split == "train"),
+            download=True,
+            transform=tfm
+        )
+    elif dataset_lower == "imagenet":
+        # Note: ImageNet requires manual download and setup
+        raise NotImplementedError("ImageNet support requires manual dataset setup")
+    else:
+        raise NotImplementedError(f"Dataset '{dataset}' not supported. Available: cifar10, cifar100, imagenet")
+    
+    dataloader = torch.utils.data.DataLoader(
         ds,
         batch_size=batch_size,
         shuffle=(split == "train"),
         num_workers=2
     )
+    
+    return dataloader, config
