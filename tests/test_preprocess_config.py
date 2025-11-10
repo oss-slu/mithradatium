@@ -1,6 +1,7 @@
 import os
 import pytest
-from mithridatium.modelcard import load_preprocess_config
+
+from mithridatium.utils import load_preprocess_config
 
 def test_load_preprocess_config():
 	model_path = os.path.join(os.path.dirname(__file__), '../models/resnet18_bd.pth') # Load the sidecar
