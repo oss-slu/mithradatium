@@ -114,7 +114,6 @@ def run_mmbd(model, configs):
     shape, loc, scale = gamma.fit(r_null)
     pv = 1 - pow(gamma.cdf(r_eval, a=shape, loc=loc, scale=scale), len(r_null)+1)
     verdict = "no_attack" if pv > 0.05 else "attack"
-    suspect = int(ind_max) if verdict == "attack" else None
 
     thresholds = {
         "p_value": 0.05,
@@ -140,7 +139,7 @@ def run_mmbd(model, configs):
         "normalized_scores": score.tolist(),
         "p_value": float(pv),
         "verdict": verdict,
-        "suspected_target": suspect,
+        "suspected_target": (int(ind_max) if verdict == "attack" else None),
         "thresholds": thresholds,
         "parameters": parameters,
         "dataset": configs.get_dataset()
