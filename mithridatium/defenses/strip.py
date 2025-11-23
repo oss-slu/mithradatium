@@ -1,0 +1,97 @@
+import torch
+import random
+from typing import Dict, Any, List
+
+def get_device(device_index=0):
+    if torch.cuda.is_available():
+        return torch.device(f"cuda:{device_index}")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    else:
+        return torch.device("cpu")
+
+def prediction_entropy(logits: torch.Tensor) -> torch.Tensor:
+    """
+    Returns per-sample entropy over the softmax distribution.
+
+    Args:
+        logits: A tensor of shape (batch_size, num_classes) containing the logits.
+
+    Returns:
+        A tensor of shape (batch_size,) containing the entropy for each sample.
+    """
+    p = torch.nn.Softmax(dim=1)(logits) + 1e-8
+    return (-p * p.log()).sum(1)
+
+def strip_scores(model, dataloader, num_bases: int = 32, num_perturbations: int = 16, device=None) -> Dict[str, Any]:
+    """
+    Computes STRIP-style entropy scores.
+
+    Args:
+        model: The model to evaluate.
+        dataloader: Dataloader providing the data.
+        num_bases: Number of base samples to evaluate.
+        num_perturbations: Number of perturbations per base sample.
+        device: Device to run the computation on.
+
+    Returns:
+        A dictionary containing the raw entropy scores.
+    """
+    if device is None:
+        try:
+            device = next(model.parameters()).device
+        except StopIteration:
+            device = get_device(0)
+
+    model.to(device, dtype=torch.float32)
+    model.eval()
+
+    # Collect all images from the dataloader to use as a pool for mixing
+    all_images = []
+    for images, _ in dataloader:
+        all_images.append(images)
+        if len(all_images) * images.shape[0] >= num_bases + num_perturbations * 2: # Heuristic to stop early if we have enough data
+             break
+    
+    if not all_images:
+         raise ValueError("Dataloader is empty")
+
+    all_images = torch.cat(all_images, dim=0)
+    
+    # Ensure we have enough images
+    if len(all_images) < num_bases:
+        num_bases = len(all_images)
+        # raise ValueError(f"Not enough images in dataloader. Needed {num_bases}, got {len(all_images)}")
+
+    # Select base samples
+    indices = torch.randperm(len(all_images))
+    base_indices = indices[:num_bases]
+    base_images = all_images[base_indices].to(device, dtype=torch.float32)
+
+    entropies_list = []
+
+    with torch.no_grad():
+        for i in range(num_bases):
+            base_img = base_images[i]
+            
+            # Create perturbations
+            # We need num_perturbations other images. 
+            # We can sample from the whole pool (excluding the current base if we want, but collision prob is low)
+            perturb_indices = torch.randint(0, len(all_images), (num_perturbations,))
+            perturb_images = all_images[perturb_indices].to(device, dtype=torch.float32)
+            
+            # Superimpose: 0.5 * base + 0.5 * other
+            # base_img is (C, H, W), perturb_images is (N, C, H, W)
+            # Broadcast base_img
+            mixed_images = 0.5 * base_img.unsqueeze(0) + 0.5 * perturb_images
+            
+            logits = model(mixed_images)
+            entropies = prediction_entropy(logits)
+            
+            # Aggregate entropy for this base sample
+            mean_entropy = entropies.mean().item()
+            entropies_list.append(mean_entropy)
+
+    return {
+        "entropies": entropies_list
+    }
