@@ -14,7 +14,6 @@ mithridatium.egg-info/requires.txt
 mithridatium.egg-info/top_level.txt
 mithridatium/defenses/__init__.py
 mithridatium/defenses/mmbd.py
-mithridatium/defenses/spectral.py
 tests/test_evaluator.py
 tests/test_preprocess_config.py
 tests/tests_report.py
