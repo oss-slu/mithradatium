@@ -93,5 +93,7 @@ def strip_scores(model, dataloader, num_bases: int = 32, num_perturbations: int 
             entropies_list.append(mean_entropy)
 
     return {
-        "entropies": entropies_list
+        "entropies": entropies_list,
+        "num_bases": num_bases,
+        "num_perturbations": num_perturbations
     }

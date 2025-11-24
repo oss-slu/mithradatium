@@ -147,11 +147,7 @@ def run_mmbd(model, configs, device=None):
         "normalized_scores": score.tolist(),
         "p_value": float(pv),
         "verdict": verdict,
-<<<<<<< HEAD
-        "suspected_target": (int(ind_max) if verdict == "attack" else None),  # Convert numpy int64 to Python int
-=======
         "suspected_target": (int(ind_max) if verdict == "attack" else None),
->>>>>>> e9d374c7bdb5d788dffd2a3706faa3491a09e84f
         "thresholds": thresholds,
         "parameters": parameters,
         "dataset": configs.get_dataset()

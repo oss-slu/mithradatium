@@ -67,6 +67,23 @@ def render_summary(report: Dict[str, Any]) -> str:
             lines.append(f"- per_class_scores:  {len(pcs)} classes\n")
         return "".join(lines).rstrip()
 
+    
+    if ("entropies" in r):
+        #STRIP Report
+        lines = [head]
+        num_bases = r.get("num_bases")
+        if num_bases is not None:
+            lines.append(f"- num_bases: {num_bases}\n")
+        num_perturbations = r.get("num_perturbations")
+        if num_perturbations is not None:
+            lines.append(f"- num_perturbations: {num_perturbations}\n")
+        entropies = r.get("entropies")
+        if entropies is not None:
+            lines.append(f"- entropies:\n")
+            for index, entropy in enumerate(entropies):
+                lines.append(f"#{index}: {entropy}\n")
+            return "".join(lines).rstrip()
+    
     # Fallback for legacy/ reports
     return (
         head
