@@ -187,7 +187,7 @@ def detect(
 
     # 7) Build dataloader (TEMP: CIFAR-10; replace with PreprocessConfig)
     print("[cli] building dataloader…")
-    test_loader = utils.dataloader_for(str(p), data, split="test", batch_size=256)
+    test_loader, config = utils.dataloader_for(data, "test", 256)
 
 
     # 8) Run the defenses that are supported
