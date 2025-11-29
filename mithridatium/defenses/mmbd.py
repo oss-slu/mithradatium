@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torchvision.models import resnet18
 
 # import argparse
+# import argparse
 import random
 import numpy as np
 
@@ -25,6 +26,12 @@ def get_device(device_index=0):
 # parser.add_argument('--device', default=0, type=int)
 # parser.add_argument("--report_out", default="reports/mmbd_report.json", help="JSON output path")
 #parser.add_argument('--data_path', '-d', required=True, help='data path')
+# args = parser.parse_args()
+# parser = argparse.ArgumentParser(description='UnivBD method')
+# parser.add_argument('--model_dir', default='model1', help='model path')
+# parser.add_argument('--device', default=0, type=int)
+# parser.add_argument("--report_out", default="reports/mmbd_report.json", help="JSON output path")
+# parser.add_argument('--data_path', '-d', required=True, help='data path')
 # args = parser.parse_args()
 
 '''def load_resnet18_cifar10(weights_path, device=0):
@@ -54,17 +61,21 @@ def run_mmbd(model, configs, device=None):
     NC = 10
     NI = 150
     PI = 0.9
-    NSTEP = 300
+    NSTEP = 75
     TC = 6
     batch_size = 20
+
+    N_CLASSES_TO_PROBE = 5
+    NUM_IMAGES = 30
 
     # Load model
     model = model.to(device=device, dtype=torch.float32).eval()
     criterion = nn.CrossEntropyLoss()
 
-    model.eval()
-    mean = torch.tensor(configs.get_mean(), device=device, dtype=torch.float32).view(1, 3, 1, 1)
-    std = torch.tensor(configs.get_std(),  device=device, dtype=torch.float32).view(1, 3, 1, 1)
+    
+    model = model.to(device).eval()
+    mean = torch.tensor(configs.get_mean(), device=device).view(1, 3, 1, 1)
+    std = torch.tensor(configs.get_std(), device=device).view(1, 3, 1, 1)
 
     def lr_scheduler(iter_idx):
         lr = 1e-2
@@ -73,8 +84,9 @@ def run_mmbd(model, configs, device=None):
         return lr
 
     res = []
-    for t in range(10):
-        images = torch.rand([30, *configs.input_size], device=device, dtype=torch.float32, requires_grad=True)
+    for t in range(N_CLASSES_TO_PROBE):
+        print(f"[mmbd] optimizing class {t+1}/{N_CLASSES_TO_PROBE}…", flush=True)
+        images = torch.rand([NUM_IMAGES, *configs.input_size], device=device, dtype=torch.float32, requires_grad=True)
         last_loss = 1000.0
         labels = torch.full((len(images),), t, dtype=torch.long, device=device)
         onehot_label = F.one_hot(labels, num_classes=NC).to(device=device, dtype=torch.float32)
@@ -115,13 +127,18 @@ def run_mmbd(model, configs, device=None):
 
 
     np.save('results.npy', np.array(res))
-    ind_max = np.argmax(stats)
-    r_eval = np.amax(stats)
+    ind_max = int(np.argmax(stats))
+    r_eval = float(np.amax(stats))
     r_null = np.delete(stats, ind_max)
 
     shape, loc, scale = gamma.fit(r_null)
     pv = 1 - pow(gamma.cdf(r_eval, a=shape, loc=loc, scale=scale), len(r_null)+1)
     verdict = "no_attack" if pv > 0.05 else "attack"
+
+    suspected_backdoor = (verdict == "attack")
+    num_flagged = 1 if suspected_backdoor else 0
+    top_eigenvalue = float(r_eval)
+
 
     thresholds = {
         "p_value": 0.05,
@@ -150,7 +167,11 @@ def run_mmbd(model, configs, device=None):
         "suspected_target": (int(ind_max) if verdict == "attack" else None),
         "thresholds": thresholds,
         "parameters": parameters,
-        "dataset": configs.get_dataset()
+        "dataset": configs.get_dataset(),
+
+        "suspected_backdoor": suspected_backdoor,
+        "num_flagged": int(num_flagged),
+        "top_eigenvalue": float(top_eigenvalue),
     }
 
     return results
