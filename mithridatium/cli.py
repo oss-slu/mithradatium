@@ -10,7 +10,7 @@ from mithridatium.defenses.mmbd import run_mmbd
 
 
 VERSION = "0.1.0"
-DEFENSES = {"spectral", "mmbd"}
+DEFENSES = {"mmbd"}
 
 EXIT_USAGE_ERROR = 64     # invalid CLI usage (e.g., unsupported --defense)
 EXIT_NO_INPUT = 66        # input file missing/not a file
@@ -162,7 +162,7 @@ def detect(
         )
         raise typer.Exit(code=EXIT_USAGE_ERROR)
     
-    # 4) Build model arch
+        # 4) Build model arch
     print(f"[cli] building model architecture '{arch}'…")
     mdl, feature_module = loader.build_model(arch, num_classes=10)
 
@@ -170,11 +170,27 @@ def detect(
     print("[cli] loading weights…")
     mdl = loader.load_weights(mdl, str(p))
 
-    # 6) Build dataloader using canonical transforms for the dataset
-    print("[cli] building dataloader…")
-    test_loader, config = utils.dataloader_for(data, split="test", batch_size=256)
+    # 6) Validate model BEFORE any defense runs
+    from mithridatium.loader import validate_model
+    cfg = utils.load_preprocess_config(str(p))  # has input_size etc.
 
-    # 7) Run the defenses that are supported
+    try:
+        print("[cli] validating model (architecture + dry forward)…")
+        validate_model(mdl, arch, cfg.input_size)
+        print("[cli] model validation OK")
+    except Exception as ex:
+        typer.secho(
+            f"Error: model validation failed.\n{ex}",
+            err=True,
+        )
+        raise typer.Exit(code=EXIT_IO_ERROR)
+
+    # 7) Build dataloader (TEMP: CIFAR-10; replace with PreprocessConfig)
+    print("[cli] building dataloader…")
+    test_loader, config = utils.dataloader_for(data, "test", 256)
+
+
+    # 8) Run the defenses that are supported
     print(f"[cli] running defense={d}…")
     try:
         if d == "mmbd":

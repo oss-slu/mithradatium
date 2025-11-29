@@ -95,3 +95,46 @@ def load_weights(model, ckpt_path: str):
     if missing or unexpected:
         print(f"[warn] load_weights: missing={missing}, unexpected={unexpected}")
     return model
+
+
+def validate_model(model: torch.nn.Module, arch: str, input_size):
+    """
+    Basic model validation:
+    - Check that the model type roughly matches the requested arch
+    - Run a dry forward pass with dummy data to confirm shape compatibility
+
+    Raises:
+        ValueError: for obvious architecture / input_size mismatches
+        RuntimeError: when the forward pass fails (bad layers, shapes, etc.)
+    """
+    # --- sanity check input_size ---
+    if not isinstance(input_size, (tuple, list)) or len(input_size) != 3:
+        raise ValueError(f"Invalid input_size for validation: {input_size} (expected (C, H, W))")
+
+    C, H, W = input_size
+
+    # --- rough architecture check ---
+    arch = arch.lower()
+    model_name = model.__class__.__name__.lower()
+
+    if "resnet" in arch and "resnet" not in model_name:
+        raise ValueError(
+            f"Model incompatible with chosen architecture '{arch}'. "
+            f"Loaded model type: '{model.__class__.__name__}'."
+        )
+
+    # --- dry forward pass on CPU ---
+    model_cpu = model.cpu().eval()
+    dummy = torch.randn(1, C, H, W)
+
+    with torch.no_grad():
+        try:
+            _ = model_cpu(dummy)
+        except Exception as ex:
+            raise RuntimeError(
+                "Dry forward pass failed — model architecture or weights "
+                f"are incompatible with input size {input_size}.\nReason: {ex}"
+            )
+
+    # if we get here, validation passed
+    return True
