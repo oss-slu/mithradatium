@@ -112,16 +112,19 @@ def get_preprocess_config(dataset: str) -> PreprocessConfig:
     Get preprocessing config for a dataset based on canonical transforms.
     
     Args:
-        dataset: Dataset name (e.g., "cifar10", "cifar100", "imagenet").
+        dataset: Dataset name. Supported: "cifar10", "cifar100", "imagenet".
         
     Returns:
         PreprocessConfig with canonical values for the dataset.
+        
+    Raises:
+        ValueError: If dataset is not supported.
     """
-    dataset_lower = dataset.lower()
+    dataset_lower = dataset.lower().strip()
     
     if dataset_lower not in DATASET_CONFIGS:
-        print(f"[warn] Unknown dataset '{dataset}', using CIFAR-10 defaults")
-        dataset_lower = "cifar10"
+        supported = ", ".join(sorted(DATASET_CONFIGS.keys()))
+        raise ValueError(f"Unsupported dataset '{dataset}'. Supported datasets: {supported}")
     
     config = DATASET_CONFIGS[dataset_lower]
     
@@ -133,7 +136,7 @@ def get_preprocess_config(dataset: str) -> PreprocessConfig:
         std=config["std"],
         normalize=config["normalize"],
         ops=[],
-        dataset=dataset
+        dataset=dataset_lower
     )
 
 
@@ -181,57 +184,97 @@ def dataloader_for(dataset: str, split: str, batch_size: int = 256):
     Create a dataloader for the specified dataset using canonical transforms.
     
     Args:
-        dataset: Dataset name (e.g., "cifar10", "cifar100", "imagenet").
+        dataset: Dataset name. Supported: "cifar10", "cifar100", "imagenet".
         split: "train" or "test".
         batch_size: Batch size for the dataloader.
         
     Returns:
         tuple: (torch.utils.data.DataLoader, PreprocessConfig) for the specified dataset.
+        
+    Raises:
+        ValueError: If dataset is not supported or split is invalid.
     """
+    # Validate inputs
+    dataset_lower = dataset.lower().strip()
+    split_lower = split.lower().strip()
+    
+    if dataset_lower not in DATASET_CONFIGS:
+        supported = ", ".join(sorted(DATASET_CONFIGS.keys()))
+        raise ValueError(f"Unsupported dataset '{dataset}'. Supported datasets: {supported}")
+    
+    if split_lower not in ("train", "test"):
+        raise ValueError(f"Invalid split '{split}'. Must be 'train' or 'test'")
+    
     # Get canonical preprocessing config for the dataset
-    config = get_preprocess_config(dataset)
+    config = get_preprocess_config(dataset_lower)
     
-    # Build transforms based on config
-    transform_list = [transforms.ToTensor()]
-    
-    # Add resize if needed (e.g., for ImageNet)
-    if config.input_size[1:] != (32, 32):  # If not 32x32
-        transform_list.append(transforms.Resize(config.input_size[1:]))
-    
-    # Add normalization
-    if config.normalize:
-        transform_list.append(transforms.Normalize(config.mean, config.std))
-    
-    tfm = transforms.Compose(transform_list)
-    
-    # Create dataset based on dataset name
-    dataset_lower = dataset.lower()
-    
+    # Build dataset-specific transform pipeline
+    # Standard order: Resize/Crop → ToTensor() → Normalize()
     if dataset_lower == "cifar10":
+        # CIFAR-10: 32x32 RGB images (already correct size)
+        transform_list = [
+            # No resize needed - images are already 32x32
+            transforms.ToTensor(),
+            transforms.Normalize(config.mean, config.std)
+        ]
         ds = datasets.CIFAR10(
             root="data",
-            train=(split == "train"),
+            train=(split_lower == "train"),
             download=True,
-            transform=tfm
+            transform=transforms.Compose(transform_list)
         )
+    
     elif dataset_lower == "cifar100":
+        # CIFAR-100: 32x32 RGB images (already correct size)
+        transform_list = [
+            # No resize needed - images are already 32x32
+            transforms.ToTensor(),
+            transforms.Normalize(config.mean, config.std)
+        ]
         ds = datasets.CIFAR100(
             root="data",
-            train=(split == "train"),
+            train=(split_lower == "train"),
             download=True,
-            transform=tfm
+            transform=transforms.Compose(transform_list)
         )
+    
     elif dataset_lower == "imagenet":
-        # Note: ImageNet requires manual download and setup
-        raise NotImplementedError("ImageNet support requires manual dataset setup")
-    else:
-        raise NotImplementedError(f"Dataset '{dataset}' not supported. Available: cifar10, cifar100, imagenet")
+        # ImageNet: Standard ImageNet preprocessing pipeline
+        if split_lower == "train":
+            transform_list = [
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(config.mean, config.std)
+            ]
+        else:  # test/val
+            transform_list = [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(config.mean, config.std)
+            ]
+        
+        # ImageNet requires manual dataset setup - provide clear instructions
+        try:
+            from torchvision.datasets import ImageNet
+            ds = ImageNet(
+                root="data/imagenet",
+                split="train" if split_lower == "train" else "val",
+                transform=transforms.Compose(transform_list)
+            )
+        except RuntimeError as e:
+            raise ValueError(
+                f"ImageNet dataset not found. Please download ImageNet manually and place it in "
+                f"'data/imagenet/' directory. Original error: {e}"
+            )
     
     dataloader = torch.utils.data.DataLoader(
         ds,
         batch_size=batch_size,
-        shuffle=(split == "train"),
-        num_workers=2
+        shuffle=(split_lower == "train"),
+        num_workers=2,
+        pin_memory=True  # Improve GPU transfer performance
     )
     
     return dataloader, config
