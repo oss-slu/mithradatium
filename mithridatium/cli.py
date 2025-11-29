@@ -7,6 +7,7 @@ from mithridatium import report as rpt
 from mithridatium import loader as loader
 from mithridatium import utils
 from mithridatium.defenses.mmbd import run_mmbd
+from mithridatium.defenses.strip import strip_scores
 
 
 VERSION = "0.1.0"
@@ -104,10 +105,11 @@ def detect(
         help="The dataset name. E.g. 'cifar10'.",
     ),
     defense: str = typer.Option(
-        "spectral",
+        "mmbd",
+        "strip",
         "--defense",
         "-D",
-        help="The defense you want to run. E.g. 'spectral'.",
+        help="The defense you want to run. E.g. 'mmbd'.",
     ),
     arch: str = typer.Option(
         "resnet18",
@@ -199,6 +201,11 @@ def detect(
             device = get_device(0)
             mdl = mdl.to(device)
             results = run_mmbd(mdl, config)
+        if d == "strip":
+
+            device = get_device(0)
+            mdl = mdl.to(device)
+            results = strip_scores(mdl, config)
         else:
             results = {"suspected_backdoor": False, "num_flagged": 0, "top_eigenvalue": 0.0}
 
