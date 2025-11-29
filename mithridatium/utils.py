@@ -8,7 +8,6 @@ from torchvision import datasets, transforms
 from dataclasses import dataclass, field
 from typing import Tuple, List
 import json
-from typing import Tuple, List
 
 class PreprocessConfig:
     """Configuration for input preprocessing."""

@@ -2,13 +2,8 @@ import torch
 import random
 from typing import Dict, Any, List
 
-def get_device(device_index=0):
-    if torch.cuda.is_available():
-        return torch.device(f"cuda:{device_index}")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        return torch.device("mps")
-    else:
-        return torch.device("cpu")
+from mithridatium import utils
+from mithridatium.defenses.mmbd import get_device
 
 def prediction_entropy(logits: torch.Tensor) -> torch.Tensor:
     """
@@ -23,13 +18,13 @@ def prediction_entropy(logits: torch.Tensor) -> torch.Tensor:
     p = torch.nn.Softmax(dim=1)(logits) + 1e-8
     return (-p * p.log()).sum(1)
 
-def strip_scores(model, dataloader, num_bases: int = 32, num_perturbations: int = 16, device=None) -> Dict[str, Any]:
+def strip_scores(model, configs, num_bases: int = 32, num_perturbations: int = 16, device=None) -> Dict[str, Any]:
     """
     Computes STRIP-style entropy scores.
 
     Args:
         model: The model to evaluate.
-        dataloader: Dataloader providing the data.
+        configs: Preprocess configuration.
         num_bases: Number of base samples to evaluate.
         num_perturbations: Number of perturbations per base sample.
         device: Device to run the computation on.
@@ -43,12 +38,20 @@ def strip_scores(model, dataloader, num_bases: int = 32, num_perturbations: int 
         except StopIteration:
             device = get_device(0)
 
-    model.to(device, dtype=torch.float32)
-    model.eval()
+    model = model.to(device=device, dtype=torch.float32).eval()
+
+    # -------- Build test dataloader ----------
+    # configs already contains dataset name, batch size, transforms, etc.
+    test_loader, _ = utils.dataloader_for(
+        configs.get_dataset(),
+        split="test",
+        batch_size=256
+    )
+
 
     # Collect all images from the dataloader to use as a pool for mixing
     all_images = []
-    for images, _ in dataloader:
+    for images, _ in test_loader:
         all_images.append(images)
         if len(all_images) * images.shape[0] >= num_bases + num_perturbations * 2: # Heuristic to stop early if we have enough data
              break
